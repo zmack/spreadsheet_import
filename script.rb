@@ -2,7 +2,13 @@ require 'open-uri'
 require 'nokogiri'
 require 'mysql2'
 
-sheet_id = '1pSoZyEFIz7ZarWnY2LXIYWlKlEFyieqiPhsMpyEr_rg'
+
+def fix_date(date)
+  # 22.04.2013 => 2013-04-22
+  date.split('.').reverse.join('-')
+end
+
+sheet_id = '1lVrCb2kJr9XKkKKILSflfluB4wMSb7mQOOoVWbq-OUA'
 url = "https://spreadsheets.google.com/feeds/cells/#{sheet_id}/od6/public/full"
 content = open(url).read
 
@@ -23,15 +29,16 @@ cells.each do |cell|
   current_col = cell['col'].to_i
 
   rows[current_row] ||= {}
-  rows[current_row][current_col] = cell.children.first.text
+  rows[current_row][current_col] = cell.children.first.text.strip
 end
 
 client = Mysql2::Client.new(:host => DB_HOST, :username => DB_USER, :password => DB_PASSWORD, :db => DB_DATABASE)
 client.query("use #{DB_DATABASE}")
-# p rows.values
+p rows.values
 
 # ESCAPING
 rows.values[1..-1].each do |row|
-  # p "insert into #{DB_TABLE} (name, thing) values ('#{client.escape(row[1].to_s)}', '#{client.escape(row[2].to_s)}')"
-  client.query("insert into #{DB_TABLE} (name, thing) values ('#{client.escape(row[1].to_s)}', '#{client.escape(row[2].to_s)}')")
+  next if row.values[1..-1].all?(&:empty?)
+  p "insert into #{DB_TABLE} (name, thing) values ('#{client.escape(row[1].to_s)}', '#{client.escape(row[2].to_s)}', '#{client.escape(row[3].to_s)}')"
+  # client.query("insert into #{DB_TABLE} (name, thing) values ('#{client.escape(row[1].to_s)}', '#{client.escape(row[2].to_s)}')")
 end
